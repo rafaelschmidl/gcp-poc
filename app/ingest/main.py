@@ -33,11 +33,22 @@ def build_wikimedia_url(project: str, article: str, target_day: date) -> str:
     )
 
 
+def get_request_headers() -> Dict[str, str]:
+    user_agent = (
+        "gcp-poc-ingest/0.1 (https://github.com/rafaelschmidl/gcp-poc; "
+        "mailto:ralfarino@gmail.com)"
+    )
+    return {
+        "User-Agent": user_agent,
+        "Accept": "application/json",
+    }
+
+
 def fetch_views_for_articles(project: str, articles: List[str], target_day: date) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     for article in articles:
         url = build_wikimedia_url(project=project, article=article, target_day=target_day)
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(url, headers=get_request_headers(), timeout=30)
         if resp.status_code == 404:
             # Missing page or no data for that day — skip gracefully
             continue
