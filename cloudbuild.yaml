@@ -1,0 +1,49 @@
+substitutions:
+  _REGION: europe-north1
+  _AR_REPO: containers
+  _SERVICE: ingest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  # Tests and lint
+  - name: python:3.11
+    id: tests
+    entrypoint: bash
+    args:
+      - -lc
+      - |
+        pip install -r app/ingest/requirements.txt -r requirements-dev.txt
+        pytest -q
+
+  # Build image
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      ["build", "-t", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$SHORT_SHA", "."]
+
+  # Push image
+  - name: gcr.io/cloud-builders/docker
+    id: push
+    args:
+      ["push", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$SHORT_SHA"]
+
+  # Deploy to Cloud Run
+  - name: gcr.io/cloud-builders/gcloud
+    id: deploy
+    args:
+      [
+        "run","deploy","$_SERVICE",
+        "--image","$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$SHORT_SHA",
+        "--region","$_REGION",
+        "--service-account","run-svc@$PROJECT_ID.iam.gserviceaccount.com",
+        "--no-allow-unauthenticated",
+        "--set-env-vars","PROJECT_ID=$PROJECT_ID,BQ_TABLE=raw.wikipedia_pageviews",
+        "--cpu","1","--memory","512Mi","--port","8080","--max-instances","2"
+      ]
+
+images:
+  - "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$SHORT_SHA"
+
+
