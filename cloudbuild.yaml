@@ -2,6 +2,7 @@ substitutions:
   _REGION: europe-north1
   _AR_REPO: containers
   _SERVICE: ingest
+  _TAG: manual
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -14,6 +15,7 @@ steps:
     args:
       - -lc
       - |
+        export PYTHONPATH=.
         pip install -r app/ingest/requirements.txt -r requirements-dev.txt
         pytest -q
 
@@ -21,13 +23,13 @@ steps:
   - name: gcr.io/cloud-builders/docker
     id: build
     args:
-      ["build", "-t", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$SHORT_SHA", "."]
+      ["build", "-t", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$_TAG", "."]
 
   # Push image
   - name: gcr.io/cloud-builders/docker
     id: push
     args:
-      ["push", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$SHORT_SHA"]
+      ["push", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$_TAG"]
 
   # Deploy to Cloud Run
   - name: gcr.io/cloud-builders/gcloud
@@ -35,7 +37,7 @@ steps:
     args:
       [
         "run","deploy","$_SERVICE",
-        "--image","$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$SHORT_SHA",
+        "--image","$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$_TAG",
         "--region","$_REGION",
         "--service-account","run-svc@$PROJECT_ID.iam.gserviceaccount.com",
         "--no-allow-unauthenticated",
@@ -44,6 +46,6 @@ steps:
       ]
 
 images:
-  - "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$SHORT_SHA"
+  - "$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/$_SERVICE:$_TAG"
 
 
