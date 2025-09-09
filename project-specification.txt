@@ -1,0 +1,128 @@
+Got it — here’s the full specification in English only (no planning/backlogs):
+
+⸻
+
+Project Specification – GCP Pivot (Task 2, VG)
+
+Goal
+Deliver a serverless data platform on GCP using Wikipedia as data source. The system must include two pipelines (CI/CD and scheduled ingestion/ML), monitoring/logging, and a simple dashboard. ML is minimal (BigQuery ML). Focus: pipelines, scheduling, and CI/CD.
+
+⸻
+
+Scope (VG Requirements)
+	1.	API Source: Wikipedia (MediaWiki Action API for revisions, Wikimedia REST/Analytics for pageviews).
+	2.	Pipelines:
+	•	CI/CD pipeline: Cloud Build → Artifact Registry → Cloud Run, triggered on code push/PR.
+	•	Scheduled data/ML pipeline: Cloud Scheduler → Cloud Run ingestion → BigQuery (storage, transform, ML).
+	3.	Scheduling: Cloud Scheduler with OIDC-secured calls to Cloud Run ingestion endpoint.
+	4.	Logging & Monitoring: Cloud Logging (structured JSON logs), log-based metrics, and alerting policies via Cloud Monitoring.
+	5.	Containerization: Docker images stored in Artifact Registry, deployed to Cloud Run.
+	6.	CI/CD: Cloud Build triggers (GitHub integration) running tests, linting, build, and deploy.
+	7.	ML Model: simple BigQuery ML model (e.g., logistic regression or clustering).
+	8.	Dashboard: Looker Studio connected to BigQuery tables or views.
+
+⸻
+
+Architecture
+	•	Ingestion: Cloud Run service fetches Wikipedia data (REST + Action API) and writes rows either directly to BigQuery (stream) or via Cloud Storage load jobs.
+	•	Transform/Model: BigQuery scheduled queries to create feature and mart tables. BQML used for training and evaluation.
+	•	Orchestration: Cloud Scheduler calls Cloud Run ingestion daily at 06:00 CET with OIDC authentication.
+	•	CI/CD: Cloud Build triggers on GitHub push/PR → builds Docker image → pushes to Artifact Registry → deploys to Cloud Run.
+	•	Observability: Structured logs in Cloud Logging → log-based metrics → Cloud Monitoring alerts.
+	•	BI: Looker Studio connected to BigQuery mart views.
+
+⸻
+
+Chosen GCP Services
+	•	Cloud Run: containerized HTTP service for ingestion (autoscaling, serverless).
+	•	Cloud Scheduler: cron-like triggers (with OIDC for security).
+	•	Artifact Registry: private Docker repository.
+	•	Cloud Build: GitHub-triggered pipeline for test, lint, build, deploy.
+	•	BigQuery: storage, transformation, ML with SQL (BQML).
+	•	Looker Studio: lightweight dashboard directly on BigQuery.
+	•	Cloud Logging & Monitoring: logs, metrics, alerts, dashboards.
+
+⸻
+
+Data Sources
+	•	MediaWiki Action API – revisions, metadata (title, pageid, user, size, timestamp).
+	•	Wikimedia REST/Analytics API – daily pageviews per article.
+	•	Optional: Python libraries (wikipedia-api) or direct HTTP requests.
+
+⸻
+
+Data Model (BigQuery)
+
+Datasets: raw, staging, mart
+	•	raw.wikipedia_revisions – partitioned by event_date.
+	•	raw.wikipedia_pageviews – partitioned by view_date.
+	•	staging.article_features – normalized tables with rolling features (7/14/28 days).
+	•	mart.article_daily – joined, cleaned data for dashboard.
+	•	models.* – BQML models and evaluation results.
+
+⸻
+
+Pipelines
+
+CI/CD Pipeline
+	•	Trigger: Cloud Build GitHub trigger on push/PR.
+	•	Steps: run tests + lint → build Docker image → push to Artifact Registry → deploy to Cloud Run.
+	•	Permissions: Cloud Build service account needs roles for Cloud Run deploy, Artifact Registry writer, BigQuery (if tests query data), and Logging.
+
+Scheduled Data/ML Pipeline
+	•	Trigger: Cloud Scheduler job at 06:00 CET → OIDC call to Cloud Run /ingest.
+	•	Ingestion: fetch revisions + pageviews for articles → write to BigQuery raw.*.
+	•	Transform: BigQuery scheduled queries create feature/mart tables.
+	•	ML: BQML trains simple model (classification/clustering). Results stored in BigQuery.
+
+⸻
+
+IAM & Access
+	•	Student-fast mode: give all three team members Editor role for the project (low friction).
+	•	Best practice mode: assign least-privilege roles (Cloud Run Developer, Artifact Registry Writer, BigQuery DataEditor, Cloud Build Editor, Service Account User).
+	•	Cloud Build service account must have deploy permissions and OIDC invocation rights.
+
+⸻
+
+Observability
+	•	Structured logging: Cloud Run writes JSON logs (jsonPayload with request_id, rows_ingested, error).
+	•	Log-based metrics: count of errors, ingestion duration.
+	•	Alerting policies: notify via email/Slack if error count > 0 or job fails.
+	•	Cloud Monitoring dashboard: latency, request count, error rate for Cloud Run + ingestion metrics.
+
+⸻
+
+Dashboard
+	•	Looker Studio connected to mart.article_daily.
+	•	Minimum: daily pageviews trend, top N articles, model predictions (e.g., spikes).
+	•	Simple but demonstrates insight from combined data.
+
+⸻
+
+Repository Structure
+
+/app
+  /ingest         # Cloud Run ingestion service (Python FastAPI/Flask)
+  /common         # shared utils (API clients, logging)
+  /tests
+/cloudbuild.yaml  # CI/CD config
+/Dockerfile
+/bq
+  /sql            # transformation queries
+  /bqml           # CREATE MODEL / EVALUATE
+/infra
+  README.md       # infra setup notes
+
+
+⸻
+
+Definition of Done
+	•	Ingestion service deployed to Cloud Run, scheduled daily via Scheduler, writing to BigQuery.
+	•	CI/CD pipeline runs tests, lint, build, and deploy automatically on push.
+	•	At least one structured log-based metric and one alert policy active.
+	•	At least one BQML model created, trained, and evaluated.
+	•	Dashboard in Looker Studio with at least 2–3 visualizations.
+
+⸻
+
+Do you want me to now break this spec into 3 sprint backlogs with epics and tasks (like Jira-style) so you can use it directly in your agile board?
